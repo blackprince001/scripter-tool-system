@@ -1,4 +1,11 @@
 from fastapi.exception_handlers import HTTPException
+from pydantic import BaseModel
+
+
+class ErrorResponse(BaseModel):
+    error_code: str
+    message: str
+    details: str
 
 
 class CustomHTTPException(HTTPException):
@@ -15,7 +22,7 @@ class CustomHTTPException(HTTPException):
                 error_code=error_code,
                 message=message,
                 details=details,
-            ).dict(),
+            ).model_dump(),
         )
 
 
