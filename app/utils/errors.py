@@ -2,7 +2,13 @@ from fastapi.exception_handlers import HTTPException
 
 
 class CustomHTTPException(HTTPException):
-    def __init__(self, status_code: int, error_code: str, message: str, details: str | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        error_code: str,
+        message: str,
+        details: str | None = None,
+    ):
         super().__init__(
             status_code=status_code,
             detail=ErrorResponse(
