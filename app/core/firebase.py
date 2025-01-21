@@ -1,39 +1,34 @@
-import firebase_admin
-from firebase_admin import credentials, firestore
 from functools import lru_cache
+from pathlib import Path
+from typing import Annotated, Optional
+
+from fastapi import Depends
+from firebase_admin import App, credentials, firestore, get_app, initialize_app
+
 from app.core.config import get_settings
 
 settings = get_settings()
 
+config_path = Path.cwd() / settings.firebase_config_file
 
-class FirebaseClient:
+cred = credentials.Certificate(config_path)
+firebase_app = initialize_app(cred)
+
+
+class Database:
     def __init__(self):
-        self._initialize_app()
         self.db = firestore.client()
 
-    def _initialize_app(self):
-        """Initialize Firebase app with credentials"""
-        try:
-            cred = credentials.Certificate(
-                {
-                    "type": "service_account",
-                    "project_id": "your-project-id",
-                    "private_key_id": settings.firebase_api_key,
-                    # Add other required credential fields from your service account JSON
-                }
-            )
-            firebase_admin.initialize_app(cred)
-        except ValueError:
-            pass
-
-    async def get_document(self, collection: str, doc_id: str):
+    async def get_document(self, collection: str, doc_id: str) -> Optional[dict]:
         doc_ref = self.db.collection(collection).document(doc_id)
         doc = doc_ref.get()
+
         return doc.to_dict() if doc.exists else None
 
-    async def set_document(self, collection: str, doc_id: str, data: dict):
+    async def set_document(self, collection: str, doc_id: str, data: dict) -> bool:
         doc_ref = self.db.collection(collection).document(doc_id)
         doc_ref.set(data)
+
         return True
 
     async def update_document(self, collection: str, doc_id: str, data: dict):
@@ -53,6 +48,14 @@ class FirebaseClient:
         return [doc.to_dict() for doc in docs]
 
 
-@lru_cache()
-def get_firebase_client():
-    return FirebaseClient()
+@lru_cache
+def get_firebase_client() -> App:
+    return get_app()
+
+
+@lru_cache
+def get_firestore_db():
+    return Database
+
+
+FirestoreDatabase = Annotated[Database, Depends(get_firestore_db)]

@@ -1,6 +1,8 @@
-from openai import OpenAI
-from typing import List, Optional
 from functools import lru_cache
+from typing import List, Optional
+
+from openai import OpenAI
+
 from app.core.config import get_settings
 
 settings = get_settings()
