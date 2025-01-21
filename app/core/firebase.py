@@ -28,7 +28,6 @@ class Database:
     async def set_document(self, collection: str, doc_id: str, data: dict) -> bool:
         doc_ref = self.db.collection(collection).document(doc_id)
         doc_ref.set(data)
-
         return True
 
     async def update_document(self, collection: str, doc_id: str, data: dict):
