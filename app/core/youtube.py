@@ -1,158 +1,271 @@
+import logging
 import re
+from functools import lru_cache
+from typing import List, Optional, Tuple
 
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
-from firebase_admin import firestore
-from app.core.firebase import get_firebase_client
-from typing import Optional
+from app.core.config import get_settings
+from app.core.firebase import Database
+from app.models.transcript import Transcript
+from app.models.video import YoutubeVideo
+from app.utils.errors import CustomHTTPException, NoChannelFoundError, NoVideoFoundError
 
-
-async def get_channel_videos(api_key, channel_id):
-    youtube = build("youtube", "v3", developerKey=api_key)
-    video_data = []  # List to store video IDs and titles
-    next_page_token = None
-
-    while True:
-        request = youtube.search().list(
-            part="id,snippet",
-            channelId=channel_id,
-            maxResults=50,
-            pageToken=next_page_token,
-            type="video",
-        )
-        response = request.execute()
-
-        for item in response["items"]:
-            video_id = item["id"]["videoId"]
-            video_title = item["snippet"]["title"]
-            video_data.append((video_id, video_title))
-
-        next_page_token = response.get("nextPageToken")
-        if not next_page_token:
-            break
-
-    return video_data
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
-def extract_youtube_video_id(url: str):
-    standard_pattern = re.compile(r"v=([a-zA-Z0-9_-]+)")
-    short_pattern = re.compile(r"youtu\.be/([a-zA-Z0-9_-]+)")
-    embed_pattern = re.compile(r"embed/([a-zA-Z0-9_-]+)")
+class YouTubeService:
+    def __init__(self):
+        self.settings = get_settings()
+        self.db = Database()  # Firebase Firestore database instance
 
-    match = standard_pattern.search(url)
-    if match:
-        return match.group(1)
+    async def get_channel_videos(self, channel_id: str) -> List[Tuple[str, str]]:
+        youtube = build("youtube", "v3", developerKey=self.settings.youtube_api_key)
+        video_data = []
+        next_page_token = None
 
-    match = short_pattern.search(url)
-    if match:
-        return match.group(1)
+        try:
+            while True:
+                request = youtube.search().list(
+                    part="id,snippet",
+                    channelId=channel_id,
+                    maxResults=50,
+                    pageToken=next_page_token,
+                    type="video",
+                    order="date",  # Get most recent videos first
+                )
+                response = request.execute()
 
-    match = embed_pattern.search(url)
-    if match:
-        return match.group(1)
-    return None
+                if not response.get("items"):
+                    raise NoChannelFoundError(
+                        status_code=404,
+                        error_code="no_channel_found",
+                        message="Channel not found or has no videos",
+                    )
 
+                video_data.extend(
+                    [
+                        (item["id"]["videoId"], item["snippet"]["title"])
+                        for item in response["items"]
+                    ]
+                )
 
-async def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        transcript_text = " ".join([entry["text"] for entry in transcript])
-        return transcript_text
-    except Exception as e:
-        print(f"Error fetching transcript for video {video_id}: {e}")
-        return None
+                next_page_token = response.get("nextPageToken")
+                if not next_page_token:
+                    break
 
+            return video_data
 
-async def save_transcript(
-    video_id: str,
-    video_title: str,
-    transcript: str,
-    category: str,
-    metadata: Optional[dict] = None,
-) -> str:
-    sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
+        except HttpError as e:
+            logger.error(f"YouTube API error: {str(e)}")
+            raise CustomHTTPException(
+                status_code=e.status_code,
+                error_code="youtube_api_error",
+                message="YouTube API request failed",
+                details=str(e),
+            )
 
-    firebase_client = get_firebase_client()
+    @staticmethod
+    def extract_video_id(url: str) -> str:
+        patterns = [
+            r"v=([a-zA-Z0-9_-]{11})",  # Standard URL
+            r"youtu\.be/([a-zA-Z0-9_-]{11})",  # Short URL
+            r"embed/([a-zA-Z0-9_-]{11})",  # Embed URL
+            r"live/([a-zA-Z0-9_-]{11})\??",  # Live URL
+            r"/([a-zA-Z0-9_-]{11})/watch\?",  # Alternative format
+        ]
 
-    doc_data = {
-        "video_id": video_id,
-        "title": video_title,
-        "transcript": transcript,
-        "category": category,  # Store original category name
-        "sanitized_category": sanitized_category,
-        "created_at": firestore.SERVER_TIMESTAMP,
-        "metadata": metadata or {},
-    }
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
 
-    try:
-        collection_name = f"transcripts_{sanitized_category}"
-        doc_id = f"{video_id}_transcript"
-
-        await firebase_client.set_document(
-            collection=collection_name, doc_id=doc_id, data=doc_data
+        raise NoVideoFoundError(
+            status_code=400,
+            error_code="invalid_url",
+            message="Invalid YouTube URL format",
+            details="Could not extract video ID from provided URL",
         )
 
-        await firebase_client.set_document(
-            collection="transcripts",
-            doc_id=doc_id,
-            data={**doc_data, "collection_ref": collection_name},
-        )
+    async def get_video_transcript(
+        self, video_id: str, languages: List[str] = ["en"]
+    ) -> Optional[str]:
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
 
-        print(
-            f"Transcript saved to Firebase for video {video_id}: "
-            f"{video_title} (Category: {category})"
-        )
+            try:
+                transcript = transcript_list.find_manually_created_transcript(languages)
+            except:  # noqa: E722
+                transcript = transcript_list.find_generated_transcript(languages)
 
-        return doc_id
+            transcript_text = " ".join([entry["text"] for entry in transcript.fetch()])
+            return transcript_text
 
-    except Exception as e:
-        print(f"Error saving transcript to Firebase: {e}")
-        raise
+        except (TranscriptsDisabled, NoTranscriptFound):
+            logger.warning(f"No transcript available for video {video_id}")
+            return None
+        except Exception as e:
+            logger.error(f"Transcript retrieval failed for {video_id}: {str(e)}")
+            raise CustomHTTPException(
+                status_code=500,
+                error_code="transcript_error",
+                message="Failed to retrieve transcript",
+                details=str(e),
+            )
 
+    async def save_transcript(
+        self,
+        video_id: str,
+        video_title: str,
+        transcript: str,
+        category: str,
+        metadata: Optional[dict] = None,
+    ) -> str:
+        if not category:
+            raise ValueError("Category is required for transcript organization")
 
-# Helper function to retrieve transcripts
-async def get_transcript(
-    video_id: str, category: Optional[str] = None
-) -> Optional[dict]:
-    """
-    Retrieve a transcript from Firebase
-
-    Args:
-        video_id: YouTube video ID
-        category: Optional category to look in specific collection
-
-    Returns:
-        dict: Transcript document data or None if not found
-    """
-    firebase_client = get_firebase_client()
-    doc_id = f"{video_id}_transcript"
-
-    if category:
-        # Look in specific category collection
         sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
         collection_name = f"transcripts_{sanitized_category}"
-        return await firebase_client.get_document(collection_name, doc_id)
-    else:
-        # Look in main transcripts collection
-        return await firebase_client.get_document("transcripts", doc_id)
+        doc_id = f"{video_id}_{sanitized_category}_transcript"
 
-
-# Helper function to list transcripts by category
-async def list_firebase_transcripts(category: Optional[str] = None) -> list:
-    firebase_client = get_firebase_client()
-
-    if category:
-        sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
-        return await firebase_client.query_collection(
-            collection="transcripts",
-            field="sanitized_category",
-            operator="==",
-            value=sanitized_category,
+        # Create Transcript model instance
+        transcript_data = Transcript(
+            video_id=video_id,
+            title=video_title,
+            transcript=transcript,
+            category=category,
+            sanitized_category=sanitized_category,
+            metadata=metadata or {},
+            created_at=self.db.get_timestamp(),
         )
-    else:
-        # Get all transcripts
-        docs = await firebase_client.query_collection(
-            collection="transcripts", field="created_at", operator="!=", value=None
-        )
-        return docs
+
+        try:
+            # Save to category-specific collection
+            await self.db.set_document(
+                collection=collection_name,
+                doc_id=doc_id,
+                data=transcript_data.model_dump(by_alias=True),
+            )
+
+            # Save reference to main collection
+            await self.db.set_document(
+                collection="transcripts",
+                doc_id=doc_id,
+                data={
+                    **transcript_data.model_dump(by_alias=True),
+                    "collection_ref": collection_name,
+                },
+            )
+
+            logger.info(f"Transcript saved for video {video_id} in category {category}")
+            return doc_id
+
+        except Exception as e:
+            logger.error(f"Firestore save failed: {str(e)}")
+            raise CustomHTTPException(
+                status_code=500,
+                error_code="firestore_error",
+                message="Failed to save transcript",
+                details=str(e),
+            )
+
+    async def get_transcript(
+        self, video_id: str, category: Optional[str] = None
+    ) -> Optional[Transcript]:
+        if category:
+            sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
+            collection_name = f"transcripts_{sanitized_category}"
+            doc_id = f"{video_id}_{sanitized_category}_transcript"
+            doc_data = await self.db.get_document(collection_name, doc_id)
+        else:
+            # Search across all collections using reference collection
+            result = await self.db.query_collection(
+                collection="transcripts",
+                field="video_id",
+                operator="==",
+                value=video_id,
+            )
+            doc_data = result[0] if result else None
+
+        return Transcript(**doc_data) if doc_data else None
+
+    async def process_youtube_video(self, url: str, category: str) -> dict:
+        try:
+            video_id = self.extract_video_id(url)
+            transcript = await self.get_video_transcript(video_id)
+
+            if not transcript:
+                raise NoVideoFoundError(
+                    status_code=404,
+                    error_code="no_transcript",
+                    message="No transcript available for this video",
+                )
+
+            # Create YoutubeVideo model instance
+            video_info = await self.get_video_info(video_id)
+            video_data = YoutubeVideo(
+                video_id=video_id,
+                title=video_info["title"],
+                channel_id=video_info["channel_id"],
+                channel_title=video_info["channel_title"],
+                transcript_id=await self.save_transcript(
+                    video_id=video_id,
+                    video_title=video_info["title"],
+                    transcript=transcript,
+                    category=category,
+                ),
+            )
+
+            # Save video metadata
+            await self.db.set_document(
+                collection="videos",
+                doc_id=video_id,
+                data=video_data.model_dump(by_alias=True),
+            )
+
+            return {
+                "status": "success",
+                "video_id": video_id,
+                "category": category,
+                "transcript_length": len(transcript),
+            }
+
+        except Exception as e:
+            logger.error(f"Video processing failed: {str(e)}")
+            raise
+
+    async def get_video_info(self, video_id: str) -> dict:
+        youtube = build("youtube", "v3", developerKey=self.settings.youtube_api_key)
+
+        try:
+            request = youtube.videos().list(part="snippet", id=video_id)
+            response = request.execute()
+            snippet = response["items"][0]["snippet"]
+
+            return {
+                "title": snippet["title"],
+                "channel_id": snippet["channelId"],
+                "channel_title": snippet["channelTitle"],
+            }
+        except (KeyError, IndexError):
+            raise NoVideoFoundError(
+                status_code=404,
+                error_code="video_not_found",
+                message="Could not retrieve video information",
+            )
+        except HttpError as e:
+            raise CustomHTTPException(
+                status_code=e.status_code,
+                error_code="youtube_api_error",
+                message="Failed to retrieve video details",
+                details=str(e),
+            )
+
+
+@lru_cache
+def get_youtube_service() -> YouTubeService:
+    return YouTubeService()
