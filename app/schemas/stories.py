@@ -3,11 +3,21 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from app.schemas.stories import StoryVariation
+from app.models.stories import Story
 from app.schemas.transcripts import CategoryWeight
 
 
-class StoryResponse(BaseModel):
+class StoryVariation(BaseModel):
+    content: str
+    style: str
+    length: int
+
+
+class StoryResponse(Story):
+    pass
+
+
+class GeneratedStoryResponse(BaseModel):
     variations: List[StoryVariation]
     prompt: str
     category_weights: List[CategoryWeight]
@@ -22,7 +32,18 @@ class StoryGenerationRequest(BaseModel):
     length: int = Field(500, ge=100, le=2000)
 
 
-class StoryVariation(BaseModel):
-    content: str
-    style: str
-    length: int
+class StoryGenerationFromTranscriptsRequest(BaseModel):
+    transcript_ids: List[str] = Field(
+        ..., description="List of transcript IDs to use for story generation"
+    )
+    variations_count: int = Field(
+        3, ge=1, le=5, description="Number of story variations to generate"
+    )
+    style: str = Field(
+        "professional",
+        enum=["casual", "professional", "creative"],
+        description="Writing style for the story",
+    )
+    length: int = Field(
+        500, ge=100, le=2000, description="Approximate length of the story in words"
+    )
