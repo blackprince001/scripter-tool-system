@@ -1,7 +1,7 @@
 import logging
 import re
 from functools import lru_cache
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -24,7 +24,9 @@ class YouTubeService:
         self.ChatGPTClient = get_chatgpt_client()
         self.db = get_firestore_db()  # Firebase Firestore database instance
 
-    async def get_channel_videos(self, channel_id: str) -> List[Tuple[str, str]]:
+    async def get_channel_videos(
+        self, channel_id: str, max_results: int = 50, order: str = "date"
+    ) -> List[dict]:
         youtube = build("youtube", "v3", developerKey=self.settings.youtube_api_key)
         video_data = []
         next_page_token = None
@@ -34,10 +36,10 @@ class YouTubeService:
                 request = youtube.search().list(
                     part="id,snippet",
                     channelId=channel_id,
-                    maxResults=50,
+                    maxResults=max_results,
                     pageToken=next_page_token,
                     type="video",
-                    order="date",  # Get most recent videos first
+                    order=order,
                 )
                 response = request.execute()
 
@@ -48,15 +50,20 @@ class YouTubeService:
                         message="Channel not found or has no videos",
                     )
 
-                video_data.extend(
-                    [
-                        (item["id"]["videoId"], item["snippet"]["title"])
-                        for item in response["items"]
-                    ]
-                )
+                for item in response["items"]:
+                    video_data.append(
+                        {
+                            "video_id": item["id"]["videoId"],
+                            "title": item["snippet"]["title"],
+                            "published_at": item["snippet"]["publishedAt"],
+                            "thumbnail": item["snippet"]["thumbnails"]["default"][
+                                "url"
+                            ],
+                        }
+                    )
 
                 next_page_token = response.get("nextPageToken")
-                if not next_page_token:
+                if not next_page_token or len(video_data) >= 500:  # Limit to 500 videos
                     break
 
             return video_data
@@ -133,7 +140,6 @@ class YouTubeService:
         collection_name = f"transcripts_{sanitized_category}"
         doc_id = f"{video_id}_{sanitized_category}_transcript"
 
-        # Create Transcript model instance
         transcript_data = Transcript(
             video_id=video_id,
             title=video_title,
@@ -145,14 +151,12 @@ class YouTubeService:
         )
 
         try:
-            # Save to category-specific collection
             await self.db.set_document(
                 collection=collection_name,
                 doc_id=doc_id,
                 data=transcript_data.model_dump(by_alias=True),
             )
 
-            # Save reference to main collection
             await self.db.set_document(
                 collection="transcripts",
                 doc_id=doc_id,
@@ -183,7 +187,6 @@ class YouTubeService:
             doc_id = f"{video_id}_{sanitized_category}_transcript"
             doc_data = await self.db.get_document(collection_name, doc_id)
         else:
-            # Search across all collections using reference collection
             result = await self.db.query_collection(
                 collection="transcripts",
                 field="video_id",
@@ -208,14 +211,12 @@ class YouTubeService:
                     message="No transcript available for this video",
                 )
 
-            # Generate category if not provided
             if not category and auto_categorize:
                 existing_categories = await self.get_existing_categories()
                 category = await self.ChatGPTClient.generate_category(
                     transcript, existing_categories=existing_categories
                 )
 
-            # Rest of processing remains the same
             video_info = await self.get_video_info(video_id)
             await self.save_transcript(
                 video_id=video_id,
@@ -250,7 +251,6 @@ class YouTubeService:
             raise
 
     async def get_existing_categories(self) -> List[str]:
-        """Get list of existing categories from Firestore"""
         try:
             collections = self.db.collections()
             return [
