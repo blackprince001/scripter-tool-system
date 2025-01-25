@@ -5,6 +5,7 @@ from typing import List, Optional
 from openai import OpenAI
 
 from app.core.config import get_settings
+from app.schemas.embedding import EmbeddingRequest, EmbeddingResponse
 
 settings = get_settings()
 
@@ -36,6 +37,19 @@ class ChatGPTClient:
             print(f"Error generating ChatGPT response: {e}")
             raise
 
+    async def generate_embedding(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        try:
+            response = self.client.embeddings.create(
+                input=request.text, model=request.model, dimensions=request.dimensions
+            )
+            return EmbeddingResponse(
+                embedding=response.data[0].embedding,
+                model=request.model,
+                dimensions=request.dimensions,
+            )
+        except Exception as e:
+            raise RuntimeError(f"Embedding generation failed: {str(e)}")
+
     async def generate_completion(
         self,
         prompt: str,
@@ -52,16 +66,16 @@ class ChatGPTClient:
         self, text: str, existing_categories: List[str] = [], max_retries: int = 3
     ) -> str:
         category_prompt = f"""Analyze this text and suggest the most appropriate category. 
-        {f'Choose from existing categories: {", ".join(existing_categories)}' if existing_categories else 'Create a new concise category name (1 or 2 words)'}
+        {f'Choose from existing categories: {", ".join(existing_categories)}' 
+        if existing_categories else 'Create a new concise category name (1 or 2 words)'}
         Respond ONLY with the category name, nothing else.
-        Text: {text[:3000]}"""  # Truncate to avoid token limits
+        Text: {text[:3000]}"""
 
         for _ in range(max_retries):
             try:
                 response = await self.generate_completion(category_prompt)
                 raw_category = response["content"].strip()
 
-                # Clean and validate response
                 clean_category = (
                     re.sub(r"[^a-zA-Z0-9\s]", "", raw_category).strip().title()
                 )
@@ -91,7 +105,7 @@ class ChatGPTClient:
             max_tokens=2000,
         )
 
-        # Parse response into variations (implementation depends on your preferred format)
+        # Parse response into variations
         return self._parse_variations(response["content"])
 
     def _parse_variations(self, content: str):

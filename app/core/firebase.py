@@ -4,6 +4,8 @@ from typing import Annotated, Optional
 
 from fastapi import Depends
 from firebase_admin import App, credentials, firestore, get_app, initialize_app
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.vector import Vector
 
 from app.core.config import get_settings
 
@@ -44,6 +46,18 @@ class Database:
         self, collection: str, field: str, operator: str, value: any
     ):
         docs = self.db.collection(collection).where(field, operator, value).stream()
+        return [doc.to_dict() for doc in docs]
+
+    async def embedding_search(self, collection: str, field: str, query_V: Vector):
+        vector_query = self.db.collection(collection).find_nearest(
+            vector_field=field,
+            query_vector=query_V,
+            distance_measure=DistanceMeasure.EUCLIDEAN,
+            limit=5,
+        )
+
+        docs = vector_query.stream()
+
         return [doc.to_dict() for doc in docs]
 
 
