@@ -8,8 +8,6 @@ class Story(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
     title: str = Field(...)
     content: str = Field(...)
-    author: str = Field(...)
-    category: str = Field(...)
     created_at: str = Field(...)
     updated_at: Optional[str] = None
 
@@ -20,8 +18,6 @@ class Story(BaseModel):
                 "_id": "066de609-b04a-4b30-b46c-32537c7f1f6e",
                 "title": "The Adventure Begins",
                 "content": "Once upon a time...",
-                "author": "John Doe",
-                "category": "Adventure",
                 "created_at": "2023-10-01T12:00:00Z",
                 "updated_at": "2023-10-02T12:00:00Z",
             }
@@ -32,8 +28,6 @@ class Story(BaseModel):
 class StoryUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
-    author: Optional[str] = None
-    category: Optional[str] = None
     updated_at: Optional[str] = None
 
     model_config = ConfigDict(
@@ -41,8 +35,6 @@ class StoryUpdate(BaseModel):
             "example": {
                 "title": "The Adventure Continues",
                 "content": "And so the journey continued...",
-                "author": "Jane Doe",
-                "category": "Fantasy",
                 "updated_at": "2023-10-03T12:00:00Z",
             }
         }
