@@ -11,13 +11,10 @@ class YoutubeVideo(BaseModel):
     title: str = Field(..., max_length=200)
     channel_id: str = Field(..., description="Source YouTube channel ID")
     channel_title: str = Field("Unknown Channel", description="Channel display name")
+
     # Processing information
-    transcript_id: Optional[str] = Field(
-        None, description="Reference to transcripts collection document ID"
-    )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="When we added to our system"
-    )
+    transcript_id: Optional[str] = Field(None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = ConfigDict(
         populate_by_name=True,

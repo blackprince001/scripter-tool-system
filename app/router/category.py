@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status
 
 from app.core.firebase import FirestoreDatabase
-from app.models.transcript import CategoryCreate, CategoryResponse
+from app.schemas.transcripts import CategoryCreate, CategoryResponse
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
