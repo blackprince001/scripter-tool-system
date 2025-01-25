@@ -1,25 +1,28 @@
-# app/router/generation.py
 import random
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.chatgpt import ChatGPTClient, get_chatgpt_client
+from app.core.firebase import FirestoreDatabase
 from app.core.youtube import YouTubeService, get_youtube_service
-from app.models.stories import StoryGenerationRequest, StoryResponse
-from app.models.transcript import CategoryWeight
+from app.schemas.stories import (
+    GeneratedStoryResponse,
+    StoryGenerationFromTranscriptsRequest,
+    StoryGenerationRequest,
+)
+from app.schemas.transcripts import CategoryWeight
 
 router = APIRouter(prefix="/generate", tags=["generation"])
 
 
-@router.post("/story", response_model=StoryResponse)
+@router.post("/story", response_model=GeneratedStoryResponse)
 async def generate_story(
     request: StoryGenerationRequest,
     youtube_service: YouTubeService = Depends(get_youtube_service),
     chatgpt: ChatGPTClient = Depends(get_chatgpt_client),
 ):
     try:
-        # 1. Get material from selected categories
         category_material = {}
         for category in request.category_weights:
             transcripts = await youtube_service.get_transcripts_by_category(
@@ -27,17 +30,14 @@ async def generate_story(
             )
             category_material[category.name] = [t.transcript for t in transcripts]
 
-        # 2. Create weighted prompt
         prompt = await _create_weighted_prompt(
             category_material, request.category_weights
         )
 
-        # 3. Generate story variations
         variations = await chatgpt.generate_story_variations(
             prompt=prompt, variations=request.variations_count, style=request.style
         )
 
-        # 4. Store generated stories and return them
         return {
             "variations": variations,
             "prompt": prompt,
@@ -58,3 +58,46 @@ async def _create_weighted_prompt(material: dict, weights: List[CategoryWeight])
         sample_size = int(weight * 10)  # Example weighting algorithm
         combined_prompt.extend(random.sample(material[category], sample_size))
     return " ".join(combined_prompt)
+
+
+@router.post("/story-from-transcripts", response_model=GeneratedStoryResponse)
+async def generate_story_from_transcripts(
+    db: FirestoreDatabase,
+    request: StoryGenerationFromTranscriptsRequest,
+    chatgpt: ChatGPTClient = Depends(get_chatgpt_client),
+):
+    try:
+        transcripts = []
+        for transcript_id in request.transcript_ids:
+            transcript = await db.get_document("transcripts", transcript_id)
+            if not transcript:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Transcript {transcript_id} not found",
+                )
+            transcripts.append(transcript["transcript"])
+
+        combined_text = " ".join(transcripts)
+        prompt = f"""
+        Create a cohesive story using the following content:
+        {combined_text}
+
+        Style: {request.style}
+        Length: {request.length} words
+        Tone: {request.tone}
+        """
+
+        variations = await chatgpt.generate_story_variations(
+            prompt=prompt, variations=request.variations_count, style=request.style
+        )
+
+        return {
+            "variations": variations,
+            "prompt": prompt,
+            "transcript_ids": request.transcript_ids,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
