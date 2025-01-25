@@ -53,6 +53,17 @@ async def search_transcripts(
     raise NotImplementedError("Search functionality not yet implemented")
 
 
+@router.get("/search/semantic/{query}", response_model=list[TranscriptResponse])
+async def search_transcript_by_embedding(
+    query: str,
+    category: str = None,
+    youtube_service: YouTubeService = Depends(get_youtube_service),
+):
+    # This would need implementation of a search method in YouTubeService
+    # using Firestore's search capabilities
+    raise NotImplementedError("Search functionality not yet implemented")
+
+
 @router.delete("/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_transcript(
     video_id: str,
