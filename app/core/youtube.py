@@ -8,10 +8,10 @@ from googleapiclient.errors import HttpError
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
+from app.core.chatgpt import get_chatgpt_client
 from app.core.config import get_settings
-from app.core.firebase import Database
+from app.core.firebase import get_firestore_db
 from app.models.transcript import Transcript
-from app.models.video import YoutubeVideo
 from app.utils.errors import CustomHTTPException, NoChannelFoundError, NoVideoFoundError
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,8 @@ logger.setLevel(logging.INFO)
 class YouTubeService:
     def __init__(self):
         self.settings = get_settings()
-        self.db = Database()  # Firebase Firestore database instance
+        self.ChatGPTClient = get_chatgpt_client()
+        self.db = get_firestore_db()  # Firebase Firestore database instance
 
     async def get_channel_videos(self, channel_id: str) -> List[Tuple[str, str]]:
         youtube = build("youtube", "v3", developerKey=self.settings.youtube_api_key)
@@ -193,7 +194,9 @@ class YouTubeService:
 
         return Transcript(**doc_data) if doc_data else None
 
-    async def process_youtube_video(self, url: str, category: str) -> dict:
+    async def process_youtube_video(
+        self, url: str, category: Optional[str] = None, auto_categorize: bool = True
+    ) -> dict:
         try:
             video_id = self.extract_video_id(url)
             transcript = await self.get_video_transcript(video_id)
@@ -205,38 +208,59 @@ class YouTubeService:
                     message="No transcript available for this video",
                 )
 
-            # Create YoutubeVideo model instance
-            video_info = await self.get_video_info(video_id)
-            video_data = YoutubeVideo(
-                video_id=video_id,
-                title=video_info["title"],
-                channel_id=video_info["channel_id"],
-                channel_title=video_info["channel_title"],
-                transcript_id=await self.save_transcript(
-                    video_id=video_id,
-                    video_title=video_info["title"],
-                    transcript=transcript,
-                    category=category,
-                ),
-            )
+            # Generate category if not provided
+            if not category and auto_categorize:
+                existing_categories = await self.get_existing_categories()
+                category = await self.ChatGPTClient.generate_category(
+                    transcript, existing_categories=existing_categories
+                )
 
-            # Save video metadata
-            await self.db.set_document(
-                collection="videos",
-                doc_id=video_id,
-                data=video_data.model_dump(by_alias=True),
+            # Rest of processing remains the same
+            video_info = await self.get_video_info(video_id)
+            await self.save_transcript(
+                video_id=video_id,
+                video_title=video_info["title"],
+                transcript=transcript,
+                category=category,
+                metadata={
+                    "auto_generated_category": auto_categorize and not bool(category)
+                },
             )
 
             return {
                 "status": "success",
                 "video_id": video_id,
                 "category": category,
-                "transcript_length": len(transcript),
+                "auto_generated": auto_categorize and not bool(category),
             }
 
         except Exception as e:
             logger.error(f"Video processing failed: {str(e)}")
             raise
+
+    async def get_transcripts_by_category(self, category: str, limit: int = 20):
+        sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
+        collection_name = f"transcripts_{sanitized_category}"
+
+        try:
+            docs = self.db.collection(collection_name).limit(limit).stream()
+            return [Transcript(**doc.to_dict()) for doc in docs]
+        except Exception as e:
+            logger.error(f"Error getting transcripts: {str(e)}")
+            raise
+
+    async def get_existing_categories(self) -> List[str]:
+        """Get list of existing categories from Firestore"""
+        try:
+            collections = self.db.collections()
+            return [
+                col.id.replace("transcripts_", "")
+                for col in collections
+                if col.id.startswith("transcripts_")
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching categories: {str(e)}")
+            return []
 
     async def get_video_info(self, video_id: str) -> dict:
         youtube = build("youtube", "v3", developerKey=self.settings.youtube_api_key)
