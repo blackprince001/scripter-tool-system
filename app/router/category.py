@@ -1,16 +1,18 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.firebase import FirestoreDatabase
+from app.core.firebase import Database, get_firestore_db
 from app.schemas.transcripts import CategoryCreate, CategoryResponse
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
-async def create_category(category: CategoryCreate, db: FirestoreDatabase):
+async def create_category(
+    category: CategoryCreate, db: Database = Depends(get_firestore_db)
+):
     try:
         category_data = {
             "name": category.name,
@@ -27,7 +29,7 @@ async def create_category(category: CategoryCreate, db: FirestoreDatabase):
 
 
 @router.get("/", response_model=List[CategoryResponse])
-async def get_categories(db: FirestoreDatabase):
+async def get_categories(db: Database = Depends(get_firestore_db)):
     try:
         categories = await db.query_collection(
             "categories", field="name", operator="!=", value=""

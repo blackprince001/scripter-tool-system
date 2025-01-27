@@ -27,7 +27,6 @@ class TranscriptProcessResponse(BaseModel):
     video_id: str
     category: str
     auto_generated: bool
-    transcript_length: int
 
 
 class CategoryCreate(BaseModel):

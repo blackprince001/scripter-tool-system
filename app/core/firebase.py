@@ -1,8 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
-from fastapi import Depends
 from firebase_admin import App, credentials, firestore, get_app, initialize_app
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
@@ -68,7 +67,4 @@ def get_firebase_client() -> App:
 
 @lru_cache
 def get_firestore_db():
-    return Database
-
-
-FirestoreDatabase = Annotated[Database, Depends(get_firestore_db)]
+    return Database()

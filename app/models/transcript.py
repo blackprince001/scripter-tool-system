@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ class Transcript(BaseModel):
     transcript: str = Field(...)
     category: str = Field(...)
     sanitized_category: str = Field(...)
-    created_at: str = Field(...)
+    created_at: datetime
     metadata: Optional[dict] = None
 
     model_config = ConfigDict(

@@ -75,7 +75,6 @@ async def delete_transcript(
         if not transcript:
             raise HTTPException(status_code=404, detail="Transcript not found")
 
-        # Delete from both collections
         await youtube_service.db.delete_document(
             transcript.collection_ref, transcript.id
         )

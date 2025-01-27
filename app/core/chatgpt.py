@@ -94,12 +94,11 @@ class ChatGPTClient:
     ):
         system_message = f"""You are a professional writer creating {variations} story variations.
         Style: {style}
-        Each variation should be distinct but based on the same source material."""
+        Each variation should be distinct but based on the same source material. Each Variation should start with the word Variation."""
 
         response = await self.generate_response(
             messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": system_message + prompt},
             ],
             temperature=0.9,  # Higher creativity
             max_tokens=2000,

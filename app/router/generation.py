@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.chatgpt import ChatGPTClient, get_chatgpt_client
-from app.core.firebase import FirestoreDatabase
+from app.core.firebase import Database, get_firestore_db
 from app.core.youtube import YouTubeService, get_youtube_service
 from app.schemas.stories import (
     GeneratedStoryResponse,
@@ -62,8 +62,8 @@ async def _create_weighted_prompt(material: dict, weights: List[CategoryWeight])
 
 @router.post("/story-from-transcripts", response_model=GeneratedStoryResponse)
 async def generate_story_from_transcripts(
-    db: FirestoreDatabase,
     request: StoryGenerationFromTranscriptsRequest,
+    db: Database = Depends(get_firestore_db),
     chatgpt: ChatGPTClient = Depends(get_chatgpt_client),
 ):
     try:
@@ -84,7 +84,6 @@ async def generate_story_from_transcripts(
 
         Style: {request.style}
         Length: {request.length} words
-        Tone: {request.tone}
         """
 
         variations = await chatgpt.generate_story_variations(
@@ -93,7 +92,6 @@ async def generate_story_from_transcripts(
 
         return {
             "variations": variations,
-            "prompt": prompt,
             "transcript_ids": request.transcript_ids,
         }
 

@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from functools import lru_cache
 from typing import List, Optional
 
@@ -10,7 +11,7 @@ from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisable
 
 from app.core.chatgpt import get_chatgpt_client
 from app.core.config import get_settings
-from app.core.firebase import get_firestore_db
+from app.core.firebase import Database
 from app.models.transcript import Transcript
 from app.utils.errors import CustomHTTPException, NoChannelFoundError, NoVideoFoundError
 
@@ -22,7 +23,7 @@ class YouTubeService:
     def __init__(self):
         self.settings = get_settings()
         self.ChatGPTClient = get_chatgpt_client()
-        self.db = get_firestore_db()  # Firebase Firestore database instance
+        self.db = Database() # Firebase Firestore database instance
 
     async def get_channel_videos(
         self, channel_id: str, max_results: int = 50, order: str = "date"
@@ -147,7 +148,7 @@ class YouTubeService:
             category=category,
             sanitized_category=sanitized_category,
             metadata=metadata or {},
-            created_at=self.db.get_timestamp(),
+            created_at=datetime.utcnow(),
         )
 
         try:
