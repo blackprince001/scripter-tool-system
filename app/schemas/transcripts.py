@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,12 +31,10 @@ class TranscriptProcessResponse(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
-    description: str
-    processing_rules: dict
 
 
-class CategoryResponse(CategoryCreate):
-    created_at: str
+class CategoryResponse(BaseModel):
+    name: str
 
 
 class CategoryWeight(BaseModel):
@@ -47,5 +45,5 @@ class CategoryWeight(BaseModel):
 class CategoryMaterialResponse(BaseModel):
     category: str
     total_transcripts: int
-    material: List[str]
-    video_ids: List[str]
+    material: Optional[List[str]]
+    video_ids: Optional[List[str]]

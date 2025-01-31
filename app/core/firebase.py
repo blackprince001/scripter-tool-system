@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from firebase_admin import App, credentials, firestore, get_app, initialize_app
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
@@ -26,6 +26,14 @@ class Database:
 
         return doc.to_dict() if doc.exists else None
 
+    async def get_documents_from_collection(
+        self, collection: str, limit: int
+    ) -> List[dict]:
+        doc_ref = self.db.collection(collection).limit(limit)
+        docs = doc_ref.stream()
+
+        return [doc.to_dict() for doc in docs]
+
     async def set_document(self, collection: str, doc_id: str, data: dict) -> bool:
         doc_ref = self.db.collection(collection).document(doc_id)
         doc_ref.set(data)
@@ -47,12 +55,23 @@ class Database:
         docs = self.db.collection(collection).where(field, operator, value).stream()
         return [doc.to_dict() for doc in docs]
 
-    async def embedding_search(self, collection: str, field: str, query_V: Vector):
+    async def search(self, collection: str, field: str, value: any):
+        docs = (
+            self.db.collection(collection)
+            .where(field, ">=", value)
+            .where(field, "<=", value + "\uf8ff")
+            .stream()
+        )
+        return [doc.to_dict() for doc in docs]
+
+    async def embedding_search(
+        self, collection: str, field: str, query_V: List[float], limit: int
+    ):
         vector_query = self.db.collection(collection).find_nearest(
             vector_field=field,
-            query_vector=query_V,
+            query_vector=Vector(query_V),
             distance_measure=DistanceMeasure.EUCLIDEAN,
-            limit=5,
+            limit=limit,
         )
 
         docs = vector_query.stream()

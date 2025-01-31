@@ -1,3 +1,4 @@
+import math
 import random
 from typing import List
 
@@ -10,6 +11,7 @@ from app.schemas.stories import (
     GeneratedStoryResponse,
     StoryGenerationFromTranscriptsRequest,
     StoryGenerationRequest,
+    StoryRegenerationFromSynopsis,
 )
 from app.schemas.transcripts import CategoryWeight
 
@@ -31,11 +33,16 @@ async def generate_story(
             category_material[category.name] = [t.transcript for t in transcripts]
 
         prompt = await _create_weighted_prompt(
-            category_material, request.category_weights
+            category_material,
+            request.category_weights,
+            request.material_per_category,
         )
 
         variations = await chatgpt.generate_story_variations(
-            prompt=prompt, variations=request.variations_count, style=request.style
+            prompt=prompt,
+            variations=request.variations_count,
+            style=request.style,
+            length=request.length,
         )
 
         return {
@@ -48,16 +55,6 @@ async def generate_story(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
-
-
-async def _create_weighted_prompt(material: dict, weights: List[CategoryWeight]):
-    # Implement your custom logic to combine materials based on weights
-    # This could use different algorithms for content mixing
-    combined_prompt = []
-    for category, weight in weights.items():
-        sample_size = int(weight * 10)  # Example weighting algorithm
-        combined_prompt.extend(random.sample(material[category], sample_size))
-    return " ".join(combined_prompt)
 
 
 @router.post("/story-from-transcripts", response_model=GeneratedStoryResponse)
@@ -87,7 +84,10 @@ async def generate_story_from_transcripts(
         """
 
         variations = await chatgpt.generate_story_variations(
-            prompt=prompt, variations=request.variations_count, style=request.style
+            prompt=prompt,
+            variations=request.variations_count,
+            style=request.style,
+            length=request.length,
         )
 
         return {
@@ -99,3 +99,52 @@ async def generate_story_from_transcripts(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
+
+@router.post("/story-from-synopsis", response_model=GeneratedStoryResponse)
+async def generated_story_from_synopsis(
+    request: StoryRegenerationFromSynopsis,
+    db: Database = Depends(get_firestore_db),
+    chatgpt: ChatGPTClient = Depends(get_chatgpt_client),
+):
+    try:
+        prompt = f"""
+        Create a cohesive story using the following content:
+        {request.story}
+
+        Style: {request.style}
+        Length: {request.length} words
+        """
+
+        variations = await chatgpt.regenerate_from_synopsis(
+            prompt=prompt,
+            variations=request.variations_count,
+            style=request.style,
+            length=request.length,
+        )
+
+        return {
+            "variations": variations,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+async def _create_weighted_prompt(
+    material: dict, weights: List[CategoryWeight], material_per_category: int
+):
+    combined_prompt = []
+    size = material_per_category * len(weights)
+    for item in weights:
+        category, weight = item.name, item.weight
+        sample_size = (
+            len(material[category])
+            if len(material[category]) <= material_per_category
+            else math.floor(weight * size) - 1
+        )
+
+        combined_prompt.extend(random.sample(material[category], sample_size))
+    return " ".join(combined_prompt)

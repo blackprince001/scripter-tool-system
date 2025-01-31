@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.youtube import YouTubeService, get_youtube_service
+from app.schemas.embedding import EmbeddingRequest
 from app.schemas.transcripts import (
     CategoryMaterialResponse,
     TranscriptProcessResponse,
@@ -42,26 +43,69 @@ async def get_transcript(
     return transcript
 
 
-@router.get("/search/{query}", response_model=list[TranscriptResponse])
+@router.get("/by-category/{category}", response_model=CategoryMaterialResponse)
+async def get_category_material(
+    category: str,
+    limit: int = 20,
+    youtube_service: YouTubeService = Depends(get_youtube_service),
+):
+    try:
+        transcripts = await youtube_service.get_transcripts_by_category(category, limit)
+        return {
+            "category": category,
+            "total_transcripts": len(transcripts),
+            "material": [t.transcript for t in transcripts],
+            "video_ids": [t.video_id for t in transcripts],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/search/{query}", response_model=list[TranscriptResponse], deprecated=True)
 async def search_transcripts(
     query: str,
+    limit: int,
     category: str = None,
     youtube_service: YouTubeService = Depends(get_youtube_service),
 ):
-    # This would need implementation of a search method in YouTubeService
-    # using Firestore's search capabilities
-    raise NotImplementedError("Search functionality not yet implemented")
+    try:
+        transcripts = await youtube_service.get_transcripts_by_search_query(
+            query=query, category=category, limit=limit
+        )
+        return {
+            "category": category,
+            "total_transcripts": len(transcripts),
+            "material": [t.transcript for t in transcripts],
+            "video_ids": [t.video_id for t in transcripts],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/search/semantic/{query}", response_model=list[TranscriptResponse])
+@router.get(
+    "/search/semantic/{query}", response_model=list[TranscriptResponse], deprecated=True
+)
 async def search_transcript_by_embedding(
     query: str,
     category: str = None,
+    limit: int = 20,
     youtube_service: YouTubeService = Depends(get_youtube_service),
 ):
-    # This would need implementation of a search method in YouTubeService
-    # using Firestore's search capabilities
-    raise NotImplementedError("Search functionality not yet implemented")
+    try:
+        query_embedding = await youtube_service.ChatGPTClient.generate_embedding(
+            EmbeddingRequest(text=query, dimensions=30)
+        )
+        transcripts = await youtube_service.get_transcripts_by_semantic_query(
+            query_embedding=query_embedding.embedding, category=category, limit=limit
+        )
+        return {
+            "category": category,
+            "total_transcripts": len(transcripts),
+            "material": [t.transcript for t in transcripts],
+            "video_ids": [t.video_id for t in transcripts],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.delete("/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -84,21 +128,3 @@ async def delete_transcript(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
-
-
-@router.get("/by-category/{category}", response_model=CategoryMaterialResponse)
-async def get_category_material(
-    category: str,
-    limit: int = 20,
-    youtube_service: YouTubeService = Depends(get_youtube_service),
-):
-    try:
-        transcripts = await youtube_service.get_transcripts_by_category(category, limit)
-        return {
-            "category": category,
-            "total_transcripts": len(transcripts),
-            "material": [t.transcript for t in transcripts],
-            "video_ids": [t.video_id for t in transcripts],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -29,3 +29,10 @@ class StoryGenerationFromTranscriptsRequest(BaseModel):
     variations_count: int = Field(3, ge=1, le=5)
     style: str = Field("professional", enum=["casual", "professional", "creative"])
     length: int = Field(500, ge=100, le=2000)
+
+
+class StoryRegenerationFromSynopsis(BaseModel):
+    story: str
+    variations_count: int = Field(3, ge=1, le=5)
+    style: str = Field("professional", enum=["casual", "professional", "creative"])
+    length: int = Field(500, ge=100, le=2000)

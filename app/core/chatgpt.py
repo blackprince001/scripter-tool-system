@@ -90,11 +90,42 @@ class ChatGPTClient:
         return "Uncategorized"
 
     async def generate_story_variations(
-        self, prompt: str, variations: int = 3, style: str = "professional"
+        self,
+        prompt: str,
+        variations: int = 3,
+        style: str = "professional",
+        length: int = 200,
     ):
         system_message = f"""You are a professional writer creating {variations} story variations.
         Style: {style}
-        Each variation should be distinct but based on the same source material. Each Variation should start with the word Variation."""
+        Each variation should be distinct but based on the same source material and should have a word size of {length} or less. Each Variation should start with the word Variation."""
+
+        response = await self.generate_response(
+            messages=[
+                {"role": "user", "content": system_message + prompt},
+            ],
+            temperature=0.9,  # Higher creativity
+            max_tokens=2000,
+        )
+
+        # Parse response into variations
+        return self._parse_variations(response["content"])
+
+    async def regenerate_from_synopsis(
+        self,
+        prompt: str,
+        variations: int = 3,
+        style: str = "professional",
+        length: int = 200,
+    ):
+        system_message = f"""You are a professional writer creating {variations} story variations.
+        Style: {style}
+        Each variation should be distinct but based on the same source material and should have a word size of {length} or less. Each Variation should start with the word Variation.
+        
+        In the prompt you are going to work with, there is going to be a summary line in square brackets [] eg. [edit this section to redefine or that], a general synopsis. You are to edit the prompt to achieve the desired effect in the number of variations you are supposed to return.
+
+        <Prompt begins>
+        """
 
         response = await self.generate_response(
             messages=[

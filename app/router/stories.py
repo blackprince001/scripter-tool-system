@@ -1,17 +1,25 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.firebase import Database, get_firestore_db
-from app.models.stories import Story, StoryUpdate
+from app.models.stories import Story, StoryCreate, StoryUpdate
 from app.schemas.stories import StoryResponse
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
 
 @router.post("/", response_model=StoryResponse, status_code=status.HTTP_201_CREATED)
-async def create_story(story: Story, db: Database = Depends(get_firestore_db)):
+async def create_story(story: StoryCreate, db: Database = Depends(get_firestore_db)):
     try:
-        await db.set_document("stories", story.id, story.model_dump(by_alias=True))
-        return story
+        new_story = Story(
+            title=story.title,
+            content=story.content,
+            created_at=datetime.utcnow(),
+            updated_at=None,
+        )
+        await db.set_document("stories", new_story.id, new_story.model_dump())
+        return new_story
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)

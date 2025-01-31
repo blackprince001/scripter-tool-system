@@ -1,4 +1,3 @@
-# app/router/youtube.py
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.config import get_settings
