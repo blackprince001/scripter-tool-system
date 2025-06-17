@@ -9,8 +9,6 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(alias="openai_api_key")
     youtube_api_key: str = Field(alias="youtube_api_key")
 
-    model_config = SettingsConfigDict(env_file=".env")
-
 
 @lru_cache
 def get_settings():

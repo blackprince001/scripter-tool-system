@@ -14,7 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -174,3 +173,7 @@ cython_debug/
 .pypirc
 
 firebase_config.json
+
+node_modules/
+# Yarn Integrity file
+.yarn-integrity
