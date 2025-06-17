@@ -2,84 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-
-button:hover {
-  border-color: #646cff;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #f9f9f9;
-  }
-}
-
-
-
 @layer base {
   :root {
+    /* Custom brand colors */
+    --color-blue: oklch(51% 25.9% 264);
+    --color-red: oklch(50% 55% 31);
+
+    /* Light theme variables */
     --background: 0 0% 100%;
     --foreground: 20 14.3% 4.1%;
     --card: 0 0% 100%;
@@ -105,7 +34,17 @@ button:focus-visible {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+
+    /* Typography */
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
   .dark {
     --background: 20 14.3% 4.1%;
     --foreground: 60 9.1% 97.8%;
@@ -132,15 +71,154 @@ button:focus-visible {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-}
 
-
-
-@layer base {
   * {
     @apply border-border;
   }
+
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    @apply font-sans antialiased;
+    @apply m-0 min-h-screen;
+    /* Remove the problematic flex centering */
+  }
+
+  /* Professional typography */
+  h1 {
+    @apply text-4xl sm:text-5xl md:text-6xl;
+    @apply font-bold tracking-tight leading-tight;
+  }
+
+  h2 {
+    @apply text-2xl sm:text-3xl md:text-4xl;
+    @apply font-semibold tracking-tight leading-tight;
+  }
+
+  h3 {
+    @apply text-xl sm:text-2xl md:text-3xl;
+    @apply font-semibold tracking-tight leading-snug;
+  }
+
+  p {
+    @apply text-sm sm:text-base;
+    @apply leading-relaxed text-muted-foreground;
+  }
+
+  a {
+    @apply text-foreground transition-colors;
+    @apply hover:text-primary;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  button {
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+}
+
+@layer components {
+
+  /* Professional container system */
+  .container-sm {
+    @apply max-w-2xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-md {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-lg {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-xl {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Content wrapper for main content */
+  .content-wrapper {
+    @apply container-lg py-8 sm:py-12 lg:py-16;
+  }
+
+  /* Professional card styles - Remove shadows, use borders only */
+  .card-elevated {
+    @apply bg-card border border-border rounded-lg;
+    @apply hover:border-primary/30 transition-colors duration-200;
+  }
+
+  .card-interactive {
+    @apply card-elevated;
+    @apply hover:border-primary/50 cursor-pointer;
+  }
+
+  /* Professional grid layouts */
+  .grid-responsive {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-4;
+  }
+
+  /* Professional focus states */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  /* Professional hover states - Remove transform, keep subtle effects */
+  .hover-lift {
+    @apply transition-colors duration-200 hover:bg-accent/50;
+  }
+
+  /* Component spacing utilities */
+  .space-y-components>*+* {
+    @apply mt-6;
+  }
+
+  .space-y-sections>*+* {
+    @apply mt-8 sm:mt-12;
+  }
+
+  .component-gap {
+    @apply space-y-6;
+  }
+}
+
+@layer utilities {
+
+  /* Professional responsive utilities */
+  .responsive-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Professional layout utilities */
+  .center-content {
+    @apply flex items-center justify-center;
+  }
+
+  .center-vertical {
+    @apply flex items-center;
+  }
+
+  .center-horizontal {
+    @apply flex justify-center;
+  }
+}
+
+/* Professional reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    @apply !transition-none !animate-none;
   }
 }
