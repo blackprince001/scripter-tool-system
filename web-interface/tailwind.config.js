@@ -7,51 +7,54 @@ export default {
 	],
 	theme: {
 		extend: {
+			fontFamily: {
+				sans: ["Inter", "sans-serif"],
+			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			colors: {
-				background: 'hsl(210, 60%, 98%)', // soft blue-gray
-				foreground: 'hsl(220, 20%, 20%)', // dark gray for text
+				background: 'hsl(var(--background))',
+				foreground: 'hsl(var(--foreground))',
 				card: {
-					DEFAULT: 'hsl(0, 0%, 100%)', // white
-					foreground: 'hsl(220, 20%, 20%)'
+					DEFAULT: 'hsl(var(--card))',
+					foreground: 'hsl(var(--card-foreground))'
 				},
 				popover: {
-					DEFAULT: 'hsl(210, 60%, 98%)',
-					foreground: 'hsl(220, 20%, 20%)'
+					DEFAULT: 'hsl(var(--popover))',
+					foreground: 'hsl(var(--popover-foreground))'
 				},
 				primary: {
-					DEFAULT: 'hsl(220, 90%, 56%)', // friendly blue
-					foreground: 'hsl(0, 0%, 100%)' // white text
+					DEFAULT: 'hsl(var(--primary))',
+					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
-					DEFAULT: 'hsl(160, 60%, 60%)', // soft green
-					foreground: 'hsl(0, 0%, 100%)'
+					DEFAULT: 'hsl(var(--secondary))',
+					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				muted: {
-					DEFAULT: 'hsl(210, 16%, 93%)', // light gray
-					foreground: 'hsl(220, 10%, 40%)'
+					DEFAULT: 'hsl(var(--muted))',
+					foreground: 'hsl(var(--muted-foreground))'
 				},
 				accent: {
-					DEFAULT: 'hsl(45, 100%, 60%)', // friendly yellow
-					foreground: 'hsl(220, 20%, 20%)'
+					DEFAULT: 'hsl(var(--accent))',
+					foreground: 'hsl(var(--accent-foreground))'
 				},
 				destructive: {
-					DEFAULT: 'hsl(0, 80%, 60%)', // friendly red
-					foreground: 'hsl(0, 0%, 100%)'
+					DEFAULT: 'hsl(var(--destructive))',
+					foreground: 'hsl(var(--destructive-foreground))'
 				},
-				border: 'hsl(210, 16%, 82%)',
-				input: 'hsl(210, 16%, 93%)',
-				ring: 'hsl(220, 90%, 56%)',
+				border: 'hsl(var(--border))',
+				input: 'hsl(var(--input))',
+				ring: 'hsl(var(--ring))',
 				chart: {
-					'1': 'hsl(220, 90%, 56%)',
-					'2': 'hsl(160, 60%, 60%)',
-					'3': 'hsl(45, 100%, 60%)',
-					'4': 'hsl(340, 82%, 67%)', // pink
-					'5': 'hsl(280, 70%, 60%)'  // purple
+					'1': 'hsl(var(--chart-1))',
+					'2': 'hsl(var(--chart-2))',
+					'3': 'hsl(var(--chart-3))',
+					'4': 'hsl(var(--chart-4))',
+					'5': 'hsl(var(--chart-5))'
 				}
 			}
 		}

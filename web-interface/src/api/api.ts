@@ -1,6 +1,50 @@
 /// <reference types="vite/client" />
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const defaultHeaders: HeadersInit = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  const config: RequestInit = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${API_BASE}${endpoint}`, config);
+
+  if (!response.ok) {
+    let errorMessage: string;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || JSON.stringify(errorData);
+    } catch (e) {
+      errorMessage = await response.text();
+    }
+    throw new ApiError(response.status, errorMessage || response.statusText);
+  }
+
+  if (response.status === 204 || response.headers.get("Content-Length") === "0") {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
 export type Video = {
   video_id: string;
   title: string;
@@ -55,65 +99,56 @@ export type Story = {
 };
 
 export async function fetchChannelVideos(channelId: string, maxResults = 20, order = "date"): Promise<ChannelVideosResponse> {
-  const res = await fetch(`${API_BASE}/youtube/channel/${channelId}/videos?max_results=${maxResults}&order=${order}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const params = new URLSearchParams({ max_results: String(maxResults), order });
+  return apiRequest(`/youtube/channel/${channelId}/videos?${params.toString()}`);
 }
 
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(`${API_BASE}/categories/`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return apiRequest(`/categories/`);
 }
 
 export async function processTranscript(url: string, category?: string, autoCategorize = true): Promise<TranscriptProcessResponse> {
   const params = new URLSearchParams({ url, auto_categorize: String(autoCategorize) });
   if (category) params.append("category", category);
-  const res = await fetch(`${API_BASE}/transcripts/process`, {
+  return apiRequest(`/transcripts/process`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params,
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function fetchTranscript(videoId: string, category?: string): Promise<Transcript> {
-  const url = category
-    ? `${API_BASE}/transcripts/${videoId}?category=${encodeURIComponent(category)}`
-    : `${API_BASE}/transcripts/${videoId}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const params = new URLSearchParams();
+  if (category) {
+    params.append("category", category);
+  }
+  const queryString = params.toString();
+  return apiRequest(`/transcripts/${videoId}${queryString ? `?${queryString}` : ""}`);
 }
 
 export async function fetchTranscriptsByCategory(category: string, limit = 20): Promise<{ category: string; total_transcripts: number; material: string[]; video_ids: string[] }> {
-  const res = await fetch(`${API_BASE}/transcripts/by-category/${encodeURIComponent(category)}?limit=${limit}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const params = new URLSearchParams({ limit: String(limit) });
+  return apiRequest(`/transcripts/by-category/${encodeURIComponent(category)}?${params.toString()}`);
 }
 
 export async function deleteTranscript(videoId: string, category: string): Promise<void> {
-  const url = `${API_BASE}/transcripts/${videoId}?category=${encodeURIComponent(category)}`;
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  const params = new URLSearchParams({ category });
+  await apiRequest(`/transcripts/${videoId}?${params.toString()}`, { method: "DELETE" });
 }
 
 export async function generateStory(data: {
   category_weights: CategoryWeight[];
+
   variations_count: number;
   style: string;
   material_per_category: number;
   length: number;
 }): Promise<GeneratedStoryResponse> {
-  const res = await fetch(`${API_BASE}/generate/story`, {
+  return apiRequest(`/generate/story`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function generateStoryFromTranscripts(data: {
@@ -122,13 +157,10 @@ export async function generateStoryFromTranscripts(data: {
   style: string;
   length: number;
 }): Promise<GeneratedStoryResponse> {
-  const res = await fetch(`${API_BASE}/generate/story-from-transcripts`, {
+  return apiRequest(`/generate/story-from-transcripts`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function generateStoryFromSynopsis(data: {
@@ -137,43 +169,31 @@ export async function generateStoryFromSynopsis(data: {
   style: string;
   length: number;
 }): Promise<GeneratedStoryResponse> {
-  const res = await fetch(`${API_BASE}/generate/story-from-synopsis`, {
+  return apiRequest(`/generate/story-from-synopsis`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 
 export async function fetchStory(storyId: string): Promise<Story> {
-  const res = await fetch(`${API_BASE}/stories/${storyId}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return apiRequest(`/stories/${storyId}`);
 }
 
 export async function deleteStory(storyId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/stories/${storyId}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  await apiRequest(`/stories/${storyId}`, { method: "DELETE" });
 }
 
 export async function createStory(data: { title: string; content: string }): Promise<Story> {
-  const res = await fetch(`${API_BASE}/stories/`, {
+  return apiRequest(`/stories/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
 export async function updateStory(storyId: string, data: { title?: string; content?: string }): Promise<Story> {
-  const res = await fetch(`${API_BASE}/stories/${storyId}`, {
+  return apiRequest(`/stories/${storyId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
