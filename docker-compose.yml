@@ -1,7 +1,5 @@
-version: '3.8'
 
 services:
-  # Backend API service
   api:
     build:
       context: .
@@ -19,7 +17,6 @@ services:
     networks:
       - scripter-network
 
-  # Frontend web interface service
   web:
     build:
       context: ./web-interface
