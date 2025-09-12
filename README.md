@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a FastAPI-based application that provides functionality for processing YouTube video transcripts, generating stories from those transcripts, and managing content using various APIs. The system integrates with YouTube for video data, OpenAI for text generation and embeddings, and Firebase for data storage.
+This project is a FastAPI-based application that provides functionality for processing YouTube video transcripts, generating stories from those transcripts, and managing content using various APIs. The system integrates with YouTube for video data, OpenAI for text generation and Firebase for data storage.
 
 ## Key Features
 
