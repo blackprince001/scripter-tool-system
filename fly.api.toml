@@ -1,0 +1,30 @@
+# fly.toml for API service
+app = 'scripter-tool-system-api'
+primary_region = 'lhr'
+
+[build]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[env]
+  FIREBASE_CONFIG_FILE = "/app/config/firebase.config.json"
+  ENVIRONMENT = "production"
+
+[[secrets]]
+  source = "OPENAI_API_KEY"
+  name = "OPENAI_API_KEY"
+
+[[secrets]]
+  source = "YOUTUBE_API_KEY"
+  name = "YOUTUBE_API_KEY"
