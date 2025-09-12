@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - FIREBASE_CONFIG_FILE=/app/config/firebase-config.json
+      - FIREBASE_CONFIG_FILE=/app/config/firebase.config.json
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     volumes:
