@@ -5,7 +5,6 @@ from typing import List, Optional
 from openai import OpenAI
 
 from app.core.config import get_settings
-from app.schemas.embedding import EmbeddingRequest, EmbeddingResponse
 
 settings = get_settings()
 
@@ -36,19 +35,6 @@ class ChatGPTClient:
         except Exception as e:
             print(f"Error generating ChatGPT response: {e}")
             raise
-
-    async def generate_embedding(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        try:
-            response = self.client.embeddings.create(
-                input=request.text, model=request.model, dimensions=request.dimensions
-            )
-            return EmbeddingResponse(
-                embedding=response.data[0].embedding,
-                model=request.model,
-                dimensions=request.dimensions,
-            )
-        except Exception as e:
-            raise RuntimeError(f"Embedding generation failed: {str(e)}")
 
     async def generate_completion(
         self,

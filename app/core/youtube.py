@@ -13,7 +13,6 @@ from app.core.chatgpt import get_chatgpt_client
 from app.core.config import get_settings
 from app.core.firebase import Database
 from app.models.transcript import Transcript
-from app.schemas.embedding import EmbeddingRequest, EmbeddingResponse
 from app.schemas.transcripts import CategoryCreate
 from app.utils.errors import CustomHTTPException, NoChannelFoundError, NoVideoFoundError
 
@@ -143,17 +142,11 @@ class YouTubeService:
         collection_name = f"transcripts_{sanitized_category}"
         doc_id = f"{video_id}_{sanitized_category}_transcript"
 
-        embedding_request = EmbeddingRequest(text=transcript)
-        generated_embedding: EmbeddingResponse = (
-            await self.ChatGPTClient.generate_embedding(embedding_request)
-        )
-
         transcript_data = Transcript(
             video_id=video_id,
             title=video_title,
             transcript=transcript,
             category=category,
-            embedding=generated_embedding.embedding,
             sanitized_category=sanitized_category,
             metadata=metadata or {},
             created_at=datetime.utcnow(),
@@ -266,21 +259,6 @@ class YouTubeService:
         try:
             docs = await self.db.get_documents_from_collection(
                 collection_name, limit=limit
-            )
-            return [Transcript(**doc) for doc in docs]
-        except Exception as e:
-            logger.error(f"Error getting transcripts: {str(e)}")
-            raise
-
-    async def get_transcripts_by_semantic_query(
-        self, query_embedding: List[float], category: str, limit: int = 20
-    ):
-        sanitized_category = re.sub(r"[^a-zA-Z0-9_]", "_", category.lower())
-        collection_name = f"transcripts_{sanitized_category}"
-
-        try:
-            docs = await self.db.embedding_search(
-                collection_name, "embedding", query_embedding, limit
             )
             return [Transcript(**doc) for doc in docs]
         except Exception as e:

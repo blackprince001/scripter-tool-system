@@ -3,7 +3,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.youtube import YouTubeService, get_youtube_service
-from app.schemas.embedding import EmbeddingRequest
 from app.schemas.transcripts import (
     CategoryMaterialResponse,
     TranscriptProcessResponse,
@@ -71,32 +70,6 @@ async def search_transcripts(
     try:
         transcripts = await youtube_service.get_transcripts_by_search_query(
             query=query, category=category, limit=limit
-        )
-        return {
-            "category": category,
-            "total_transcripts": len(transcripts),
-            "material": [t.transcript for t in transcripts],
-            "video_ids": [t.video_id for t in transcripts],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.get(
-    "/search/semantic/{query}", response_model=list[TranscriptResponse], deprecated=True
-)
-async def search_transcript_by_embedding(
-    query: str,
-    category: str = None,
-    limit: int = 20,
-    youtube_service: YouTubeService = Depends(get_youtube_service),
-):
-    try:
-        query_embedding = await youtube_service.ChatGPTClient.generate_embedding(
-            EmbeddingRequest(text=query, dimensions=30)
-        )
-        transcripts = await youtube_service.get_transcripts_by_semantic_query(
-            query_embedding=query_embedding.embedding, category=category, limit=limit
         )
         return {
             "category": category,

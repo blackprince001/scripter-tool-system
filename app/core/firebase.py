@@ -3,8 +3,6 @@ from pathlib import Path
 from typing import List, Optional
 
 from firebase_admin import App, credentials, firestore, get_app, initialize_app
-from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
-from google.cloud.firestore_v1.vector import Vector
 
 from app.core.config import get_settings
 
@@ -63,21 +61,6 @@ class Database:
             .stream()
         )
         return [doc.to_dict() for doc in docs]
-
-    async def embedding_search(
-        self, collection: str, field: str, query_V: List[float], limit: int
-    ):
-        vector_query = self.db.collection(collection).find_nearest(
-            vector_field=field,
-            query_vector=Vector(query_V),
-            distance_measure=DistanceMeasure.EUCLIDEAN,
-            limit=limit,
-        )
-
-        docs = vector_query.stream()
-
-        return [doc.to_dict() for doc in docs]
-
 
 @lru_cache
 def get_firebase_client() -> App:

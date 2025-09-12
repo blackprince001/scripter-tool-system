@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -10,7 +10,6 @@ class Transcript(BaseModel):
     video_id: str = Field(...)
     title: str = Field(...)
     transcript: str = Field(...)
-    embedding: List[float] = []
     category: str = Field(...)
     sanitized_category: str = Field(...)
     created_at: datetime

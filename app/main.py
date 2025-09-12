@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from app.router.category import router as category_router
 from app.router.common import router as common_router
@@ -9,10 +10,20 @@ from app.router.transcripts import router as transcript_router
 
 app = FastAPI()
 
+# Configure CORS based on environment
+allowed_origins = [
+    "https://scripter-tool-system-web.fly.dev",  # Production web app
+    "http://localhost:3000",  # Local development
+    "http://localhost:80",    # Local docker-compose
+]
+
+# Add 0.0.0.0 for development if not in production
+if os.getenv("ENVIRONMENT") != "production":
+    allowed_origins.append("0.0.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["0.0.0.0"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
