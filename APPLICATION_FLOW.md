@@ -40,8 +40,7 @@ flowchart TD
     E -- No --> G[Use Provided Category]
     F --> H[Store Transcript]
     G --> H
-    H --> I[Generate Embeddings]
-    I --> J[Save to Firebase]
+    H --> I[Save to Firebase]
 ```
 
 **Implementation Steps:**
@@ -55,7 +54,6 @@ flowchart TD
    - Extract video ID
    - Fetch transcript
    - Auto-categorize content if enabled
-   - Store in Firebase with embeddings
 
 ## 3. Story Generation
 
