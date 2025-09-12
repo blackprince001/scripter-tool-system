@@ -25,5 +25,8 @@ ENV/
 env/
 .venv/
 web-interface/
-config/
-*.json 
+# Allow config directory and firebase config
+!config/
+!config/firebase.config.json
+# Exclude web-interface JSON files specifically
+web-interface/*.json

@@ -172,7 +172,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-firebase_config.json
+firebase.config.json
 
 node_modules/
 # Yarn Integrity file
