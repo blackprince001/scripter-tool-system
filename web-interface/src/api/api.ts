@@ -98,24 +98,76 @@ export type Story = {
   updated_at?: string;
 };
 
+// Batch Processing Types
+export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";
+
+export type VideoProcessingItem = {
+  video_id: string;
+  title: string;
+  url: string;
+  status: ProcessingStatus;
+  category?: string;
+  error_message?: string;
+};
+
+export type BatchProcessRequest = {
+  videos: VideoProcessingItem[];
+  auto_categorize: boolean;
+  default_category?: string;
+};
+
+export type BatchProcessResponse = {
+  batch_id: string;
+  total_videos: number;
+  processed_count: number;
+  failed_count: number;
+  videos: VideoProcessingItem[];
+};
+
+export type BatchStatusResponse = {
+  batch_id: string;
+  status: ProcessingStatus;
+  total_videos: number;
+  processed_count: number;
+  failed_count: number;
+  videos: VideoProcessingItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+// Existing API functions
 export async function fetchChannelVideos(channelId: string, maxResults = 20, order = "date"): Promise<ChannelVideosResponse> {
   const params = new URLSearchParams({ max_results: String(maxResults), order });
   return apiRequest(`/youtube/channel/${channelId}/videos?${params.toString()}`);
 }
-
 
 export async function fetchCategories(): Promise<Category[]> {
   return apiRequest(`/categories/`);
 }
 
 export async function processTranscript(url: string, category?: string, autoCategorize = true): Promise<TranscriptProcessResponse> {
-  const params = new URLSearchParams({ url, auto_categorize: String(autoCategorize) });
-  if (category) params.append("category", category);
-  return apiRequest(`/transcripts/process`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
+  const params = new URLSearchParams({ 
+    url: url, 
+    auto_categorize: String(autoCategorize) 
   });
+  if (category) {
+    params.append("category", category);
+  }
+  return apiRequest(`/transcripts/process?${params.toString()}`, {
+    method: "POST",
+  });
+}
+
+// New Batch Processing API functions
+export async function batchProcessTranscripts(request: BatchProcessRequest): Promise<BatchProcessResponse> {
+  return apiRequest(`/transcripts/batch-process`, {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export async function getBatchStatus(batchId: string): Promise<BatchStatusResponse> {
+  return apiRequest(`/transcripts/batch-status/${batchId}`);
 }
 
 export async function fetchTranscript(videoId: string, category?: string): Promise<Transcript> {
@@ -139,7 +191,6 @@ export async function deleteTranscript(videoId: string, category: string): Promi
 
 export async function generateStory(data: {
   category_weights: CategoryWeight[];
-
   variations_count: number;
   style: string;
   material_per_category: number;
@@ -174,7 +225,6 @@ export async function generateStoryFromSynopsis(data: {
     body: JSON.stringify(data),
   });
 }
-
 
 export async function fetchStory(storyId: string): Promise<Story> {
   return apiRequest(`/stories/${storyId}`);
