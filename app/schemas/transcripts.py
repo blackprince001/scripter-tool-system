@@ -1,4 +1,5 @@
 from typing import List, Optional
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,3 +48,45 @@ class CategoryMaterialResponse(BaseModel):
     total_transcripts: int
     material: Optional[List[str]]
     video_ids: Optional[List[str]]
+
+
+# Batch Processing Schemas
+class ProcessingStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class VideoProcessingItem(BaseModel):
+    video_id: str
+    title: str
+    url: str
+    status: ProcessingStatus = ProcessingStatus.PENDING
+    category: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class BatchProcessRequest(BaseModel):
+    videos: List[VideoProcessingItem]
+    auto_categorize: bool = True
+    default_category: Optional[str] = None
+
+
+class BatchProcessResponse(BaseModel):
+    batch_id: str
+    total_videos: int
+    processed_count: int
+    failed_count: int
+    videos: List[VideoProcessingItem]
+
+
+class BatchStatusResponse(BaseModel):
+    batch_id: str
+    status: ProcessingStatus
+    total_videos: int
+    processed_count: int
+    failed_count: int
+    videos: List[VideoProcessingItem]
+    created_at: str
+    updated_at: str
