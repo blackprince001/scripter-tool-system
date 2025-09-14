@@ -5,6 +5,7 @@ from typing import List, Optional
 from openai import OpenAI
 
 from app.core.config import get_settings
+from app.utils.errors import CustomHTTPException
 
 settings = get_settings()
 
@@ -52,8 +53,11 @@ class ChatGPTClient:
         self, text: str, existing_categories: List[str] = [], max_retries: int = 3
     ) -> str:
         category_prompt = f"""Analyze this text and suggest the most appropriate category. 
-        {f'Choose from existing categories: {", ".join(existing_categories)}' 
-        if existing_categories else 'Create a new concise category name (1 or 2 words)'}
+        {
+            f"Choose from existing categories: {', '.join(existing_categories)}"
+            if existing_categories
+            else "Create a new concise category name (1 or 2 words)"
+        }
         Respond ONLY with the category name, nothing else.
         Text: {text[:3000]}"""
 
@@ -98,31 +102,40 @@ class ChatGPTClient:
         return self._parse_variations(response["content"])
 
     async def regenerate_from_synopsis(
-        self,
-        prompt: str,
-        variations: int = 3,
-        style: str = "professional",
-        length: int = 200,
-    ):
-        system_message = f"""You are a professional writer creating {variations} story variations.
-        Style: {style}
-        Each variation should be distinct but based on the same source material and should have a word size of {length} or less. Each Variation should start with the word Variation.
-        
-        In the prompt you are going to work with, there is going to be a summary line in square brackets [] eg. [edit this section to redefine or that], a general synopsis. You are to edit the prompt to achieve the desired effect in the number of variations you are supposed to return.
+        self, prompt: str, variations: int, style: str, length: int
+    ) -> List[str]:
+        """Generate story variations from a synopsis"""
+        try:
+            system_prompt = f"""
+            You are a creative story writer. Generate {variations} different story variations based on the provided synopsis.
+            
+            Style: {style}
+            Target length: {length} words per story
+            
+            Each variation should be unique but follow the same general plot structure.
+            Make each story engaging and well-written.
+            """
 
-        <Prompt begins>
-        """
+            response = await self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=length * 2,
+                temperature=0.8,
+            )
 
-        response = await self.generate_response(
-            messages=[
-                {"role": "user", "content": system_message + prompt},
-            ],
-            temperature=0.9,  # Higher creativity
-            max_tokens=2000,
-        )
+            content = response.choices[0].message.content
+            return self._parse_story_variations(content, variations)
 
-        # Parse response into variations
-        return self._parse_variations(response["content"])
+        except Exception as e:
+            raise CustomHTTPException(
+                status_code=500,
+                error_code="story_generation_error",
+                message="Failed to generate story from synopsis",
+                details=str(e),
+            )
 
     def _parse_variations(self, content: str):
         # Implement parsing logic based on your ChatGPT response format
