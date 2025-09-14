@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://scripter-tool-system-api.fly.dev";
 
 export class ApiError extends Error {
   constructor(
