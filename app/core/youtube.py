@@ -1,6 +1,5 @@
 import logging
 import re
-from datetime import datetime
 from functools import lru_cache
 from typing import List, Optional
 
@@ -25,6 +24,7 @@ class YouTubeService:
         self.settings = get_settings()
         self.ChatGPTClient = get_chatgpt_client()
         self.db = Database()  # Firebase Firestore database instance
+        self.youtube = YouTubeTranscriptApi()
 
     async def get_channel_videos(
         self, channel_id: str, max_results: int = 50, order: str = "date"
@@ -105,7 +105,7 @@ class YouTubeService:
         self, video_id: str, languages: List[str] = ["en"]
     ) -> Optional[str]:
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            transcript_list = self.youtube.list(video_id=video_id)
 
             try:
                 transcript = transcript_list.find_manually_created_transcript(languages)
@@ -149,7 +149,6 @@ class YouTubeService:
             category=category,
             sanitized_category=sanitized_category,
             metadata=metadata or {},
-            created_at=datetime.utcnow(),
         )
 
         try:
@@ -316,6 +315,31 @@ class YouTubeService:
                 status_code=e.status_code,
                 error_code="youtube_api_error",
                 message="Failed to retrieve video details",
+                details=str(e),
+            )
+
+    async def delete_transcript(self, video_id: str, category: str) -> None:
+        """Delete a transcript from the database"""
+        try:
+            # Get the transcript to find its ID
+            transcript = await self.get_transcript(video_id, category)
+            if not transcript:
+                raise NoVideoFoundError(
+                    status_code=404,
+                    error_code="transcript_not_found",
+                    message="Transcript not found",
+                )
+
+            # Delete from both collections
+            await self.db.delete_document("transcripts", transcript.id)
+            await self.db.delete_document(f"transcripts_{category}", transcript.id)
+
+        except Exception as e:
+            logger.error(f"Failed to delete transcript {video_id}: {str(e)}")
+            raise CustomHTTPException(
+                status_code=500,
+                error_code="delete_error",
+                message="Failed to delete transcript",
                 details=str(e),
             )
 

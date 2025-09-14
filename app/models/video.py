@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -11,10 +10,8 @@ class YoutubeVideo(BaseModel):
     title: str = Field(..., max_length=200)
     channel_id: str = Field(..., description="Source YouTube channel ID")
     channel_title: str = Field("Unknown Channel", description="Channel display name")
-
     # Processing information
     transcript_id: Optional[str] = Field(None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class YoutubeVideoUpdate(BaseModel):

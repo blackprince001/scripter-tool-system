@@ -62,6 +62,7 @@ class Database:
         )
         return [doc.to_dict() for doc in docs]
 
+
 @lru_cache
 def get_firebase_client() -> App:
     return get_app()

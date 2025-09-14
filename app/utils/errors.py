@@ -14,7 +14,7 @@ class CustomHTTPException(HTTPException):
         status_code: int,
         error_code: str,
         message: str,
-        details: str | None = None,
+        details: str = "",
     ):
         super().__init__(
             status_code=status_code,
