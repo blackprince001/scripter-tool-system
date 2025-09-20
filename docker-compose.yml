@@ -11,7 +11,10 @@ services:
       - FIREBASE_CONFIG_FILE=/app/config/firebase.config.json
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
+    depends_on:
+      - postgres
     networks:
       - scripter-network
 
@@ -22,13 +25,28 @@ services:
     container_name: scripter-web
     ports:
       - "3000:80"
-    # depends_on:
-    #   - api
+    depends_on:
+      - api
     environment:
       - VITE_API_BASE=https://scripter-tool-system-api.fly.dev
     restart: unless-stopped
     networks:
       - scripter-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: scripter-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    restart: unless-stopped
+    networks:
+      - scripter-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 networks:
   scripter-network:
@@ -36,3 +54,4 @@ networks:
 
 volumes:
   config: 
+  postgres_data:

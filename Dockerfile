@@ -13,6 +13,9 @@ COPY . /app
 # Install the application dependencies.
 RUN uv pip install --no-cache-dir -r requirements.txt --system
 
+# Generate Prisma client
+RUN prisma generate
+
 # Set proper permissions for config directory
 RUN chmod 755 /app/config
 
