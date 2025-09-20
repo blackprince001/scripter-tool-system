@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,7 +13,8 @@ import {
   PenTool,
   Zap,
   Target,
-  Layers
+  Layers,
+  List
 } from "lucide-react"
 import {
   fetchCategories,
@@ -181,6 +183,14 @@ export default function EnhancedStoryPage() {
           <h1 className="text-3xl font-bold">Enhanced Story Generator</h1>
         </div>
         <p className="text-muted-foreground">Generate stories from multiple sources with advanced controls</p>
+        <div className="flex justify-center mt-4">
+          <Button variant="outline" asChild>
+            <Link to="/stories/all">
+              <List className="h-4 w-4 mr-2" />
+              View All Stories
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Generation Methods Tabs */}

@@ -4,6 +4,8 @@ import EnhancedChannelPage from './pages/channel-page';
 import TranscriptsPage from './pages/transcripts-page';
 import DashboardPage from './pages/dashboard-page';
 import EnhancedStoryPage from './pages/story-page';
+import StoryDetailPage from './pages/story-detail-page';
+import StoriesListPage from './pages/stories-list-page';
 
 const App: React.FC = () => {
   return (
@@ -71,6 +73,8 @@ const App: React.FC = () => {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/transcripts" element={<TranscriptsPage />} />
             <Route path="/stories" element={<EnhancedStoryPage />} />
+            <Route path="/stories/all" element={<StoriesListPage />} />
+            <Route path="/stories/:id" element={<StoryDetailPage />} />
           </Routes>
         </main>
       </div>

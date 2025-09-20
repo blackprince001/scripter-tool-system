@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 const API_BASE = import.meta.env.VITE_API_BASE || "https://scripter-tool-system-api.fly.dev";
+// const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 export class ApiError extends Error {
   constructor(
@@ -94,6 +95,8 @@ export type Story = {
   id: string;
   title: string;
   content: string;
+  status: "draft" | "finalized";
+  project_id?: number;
   created_at: string;
   updated_at?: string;
 };
@@ -246,4 +249,38 @@ export async function updateStory(storyId: string, data: { title?: string; conte
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+export async function finalizeStory(
+  storyId: string, 
+  data: { 
+    project_slug: string; 
+    assignee_username: string; 
+    task_title?: string; 
+    task_description?: string; 
+  }
+): Promise<Story> {
+  return apiRequest(`/stories/${storyId}/finalize`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export type Project = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+export type User = {
+  id: number;
+  username: string;
+};
+
+export async function fetchProjects(): Promise<Project[]> {
+  return apiRequest("/stories/projects");
+}
+
+export async function fetchUsers(): Promise<User[]> {
+  return apiRequest("/stories/users");
 }
