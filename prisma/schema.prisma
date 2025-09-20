@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id            Int             @id @default(autoincrement())
+  name          String
+  slug          String          @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  Task          Task[]
+  ProjectAccess ProjectAccess[]
+  InviteToken   InviteToken[]
+  Notification  Notification[]
+}
+
+model ProjectAccess {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  status      Status    @default(pending)
+  author      User      @relation("author", fields: [authorId], references: [id])
+  assignee    User      @relation("assignee", fields: [assigneeId], references: [id])
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   Int
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Comment     Comment[]
+  authorId    Int
+  assigneeId  Int
+  // Additional fields for story integration
+  storyId     String?   // Reference to the story that created this task
+  description String?   // Task description/content
+}
+
+enum Status {
+  pending
+  inProgress
+  done
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  editedAt  DateTime?
+  deletedAt DateTime?
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  username      String          @unique
+  password      String
+  superUser     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  Comment       Comment[]
+  Tasks         Task[]          @relation("author")
+  Assignments   Task[]          @relation("assignee")
+  Notification  Notification[]
+  ProjectAccess ProjectAccess[]
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  message   String
+  user      User             @relation(fields: [userId], references: [id])
+  userId    Int
+  type      NotificationType
+  meta      Json
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+enum NotificationType {
+  comment
+  assignment
+  generic
+  new_member
+  mention
+}
+
+model InviteToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  used      Boolean   @default(false)
+  projectId Int
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usedAt    DateTime?
+  expiresAt DateTime
+}
